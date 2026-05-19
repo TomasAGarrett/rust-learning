@@ -1,7 +1,9 @@
+use std::fs;
 use std::io;
 use std::io::Write; // Import Write trait for flushing stdout
+use serde::{Serialize, Deserialize}; // Import Serialize and Deserialize traits from serde
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Task {
     description: String,
     done: bool,
@@ -14,8 +16,22 @@ fn read_input(prompt: &str) -> String { // Function to read user input with a pr
     input.trim().to_string() // Trim whitespace and convert to String
 }
 
+fn save_tasks(tasks: &Vec<Task>) { // Function to save tasks to a JSON file
+    let json = serde_json::to_string(tasks).unwrap(); // Serialize the tasks vector to a JSON string
+    fs::write("tasks.json", json).unwrap(); // Write the JSON string to a file named "tasks.json"
+}
+
+fn load_tasks() -> Vec<Task> { // Function to load tasks from a JSON file
+    let file = fs::read_to_string("tasks.json"); // Try to read the contents of "tasks.json"
+    match file { // Match the result of reading the file
+        Ok(json) => // If the file is read successfully, deserialize the JSON string into a vector of tasks
+serde_json::from_str(&json).unwrap(), // If the file is read successfully, deserialize the JSON string into a vector of tasks
+        Err(_) => Vec::new(), // If there is an error (e.g., file not found), return an empty vector
+    }
+}
+
 fn main() { // Main function to run the task manager
-    let mut tasks: Vec<Task> = Vec::new(); // Create a mutable vector to store tasks
+    let mut tasks: Vec<Task> = load_tasks(); // Load existing tasks from the JSON file into a mutable vector
 
     loop { // Start an infinite loop to continuously prompt the user for commands
         let input = read_input("\ncommand (add, list, done, delete, quit): "); // Read a command from the user
@@ -33,6 +49,7 @@ fn main() { // Main function to run the task manager
                     description,
                     done: false,
                 });
+                save_tasks(&tasks); // Save the updated tasks to the JSON file
                 println!("Task added."); // Confirm that the task has been added
             }
             "list" => {
@@ -55,6 +72,7 @@ fn main() { // Main function to run the task manager
                 match index_str.parse::<usize>() { // Try to parse the input as a usize
                     Ok(index) if index < tasks.len() => { // Check if the index is valid
                         tasks[index].done = true; // Mark the task as done
+                        save_tasks(&tasks); // Save the updated tasks to the JSON file
                         println!("Task marked as done."); // Mark the task as done and confirm
                     }
                     _ => println!("Invalid task number."), // Handle invalid task numbers
@@ -70,6 +88,7 @@ fn main() { // Main function to run the task manager
                 match index_str.parse::<usize>() { // Try to parse the input as a usize
                     Ok(index) if index < tasks.len() => { // Check if the index is valid
                         let removed = tasks.remove(index); // Remove the task from the vector
+                        save_tasks(&tasks); // Save the updated tasks to the JSON file
                         println!("Task '{}' deleted.", removed.description); // Confirm that the task has been deleted
                     }
                     _ => println!("Invalid task number."), // Handle invalid task numbers
